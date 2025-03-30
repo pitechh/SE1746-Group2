@@ -10,7 +10,7 @@ namespace Infrastructure.Contexts
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
         #endregion
 
-        #region Property
+        #region DbSet Properties
         public DbSet<Education> Educations { get; set; }
         public DbSet<WorkHistory> WorkHistories { get; set; }
         public DbSet<Certificate> Certificates { get; set; }
@@ -26,15 +26,17 @@ namespace Infrastructure.Contexts
         public DbSet<Department> Departments { get; set; }
         public DbSet<Pay> Pays { get; set; }
         public DbSet<Timesheet> Timesheets { get; set; }
+
+        // ✅ Thêm dòng này để làm việc với công thức PIT / BHXH
+        public DbSet<SalaryFormulaConfig> SalaryFormulaConfigs { get; set; }
         #endregion
 
-        #region Method
-        // Use Fluent API
+        #region Fluent API Config
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
 
-            // Finds and runs all your configuration classes in the same assembly as the DbContext
+            // Tự động tìm các cấu hình từ cùng Assembly
             builder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
         }
         #endregion

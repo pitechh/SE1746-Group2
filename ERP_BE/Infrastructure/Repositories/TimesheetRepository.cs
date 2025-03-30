@@ -25,6 +25,15 @@ namespace Infrastructure.Repositories
             .OrderByDescending(x => x.Id)
             .Select(x => new WorkDayResource() { WorkDay = x.WorkDay, TotalWorkDay = x.TotalWorkDay })
             .FirstOrDefaultAsync();
+
+        public async Task<IEnumerable<Timesheet>> GetByMonthYearAsync(int year, int month)
+        {
+            return await Context.Timesheets
+                .Include(t => t.Person)
+                .Where(t => t.Date.Year == year && t.Date.Month == month)
+                .ToListAsync();
+        }
+
         #endregion
     }
 }

@@ -215,7 +215,33 @@
             :label="$t('newEmployee')"
             unelevated
           />
+          
+          <q-select
+  v-model="exportMonth"
+  :options="[1,2,3,4,5,6,7,8,9,10,11,12]"
+  label="Chọn tháng"
+  dense
+  class="q-mr-sm"
+  style="width: 120px"
+/>
+
+<q-input
+  v-model="exportYear"
+  label="Chọn năm"
+  type="number"
+  dense
+  style="width: 120px"
+/>
+
+<q-btn
+  label="Export Timesheet"
+  color="primary"
+  class="q-ml-sm"
+  @click="exportTimesheet"
+/>
+
         </div>
+        
 
         <q-table
           class="table-content"
@@ -482,7 +508,8 @@ export default defineComponent({
       widthOfFullName: "130px",
       widthOfDepartment: "100px",
       widthOfPosition: "100px",
-
+      exportMonth: null,
+      exportYear: null,
       timesheetFile: null,
       splitterModel: 50,
       dateTimesheet: "",
@@ -597,6 +624,50 @@ export default defineComponent({
     saveInsert() {
       this.statusInsert = true;
     },
+    
+    async exportTimesheet() {
+  if (!this.exportMonth || !this.exportYear) {
+    this.$q.notify({
+      type: 'warning',
+      message: 'Vui lòng chọn đầy đủ tháng và năm để xuất Timesheet.',
+    });
+    return;
+  }
+
+  try {
+    const isValid = await this.validateToken();
+    if (!isValid) return this.$router.replace("/login");
+
+    const response = await api.get("/api/v1/timesheet/export", {
+      params: {
+        year: this.exportYear,
+        month: this.exportMonth,
+      },
+      responseType: "blob",
+    });
+
+    const blob = new Blob([response.data], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `Timesheet_${this.exportYear}_${this.exportMonth}.xlsx`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error(error);
+    this.$q.notify({
+      color: "negative",
+      message: "Xuất file timesheet thất bại!",
+      icon: "error",
+    });
+  }
+}
+,
     async insertReceive(value) {
       if (value) {
         this.statusInsert = false;

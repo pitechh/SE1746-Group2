@@ -5,6 +5,7 @@ namespace Business.Domain.Repositories
     public interface IBaseRepository<Entity> where Entity : class
     {
         Task<Entity> GetByIdAsync(int entityId);
+        Task<Entity> GetByPersonIdAsync(int entityId);
         Task<IEnumerable<Entity>> GetWithPrimaryKeyAsync(List<int> keyValues);
         Task InsertAsync(Entity entity);
         Task AddRangeAsync(IEnumerable<Entity> entities);

@@ -8,5 +8,7 @@ namespace Business.Domain.Repositories
         Task<Timesheet> GetTimesheetByPersonIdAsync(int personId, DateTime date);
 
         Task<WorkDayResource> GetTotalWorkDayAsync(int personId, DateTime date);
+
+        Task<IEnumerable<Timesheet>> GetByMonthYearAsync(int year, int month);
     }
 }
