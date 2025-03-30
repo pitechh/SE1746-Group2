@@ -116,6 +116,58 @@ namespace Business.Services
             return new BaseResponse<TimesheetResource>(true);
         }
 
+        public async Task<byte[]> ExportAsync(int year, int month)
+        {
+            var timesheets = await _timesheetRepository.GetByMonthYearAsync(year, month);
+
+            using var package = new ExcelPackage();
+            var worksheet = package.Workbook.Worksheets.Add("Timesheet");
+
+            // Header row: năm/tháng
+            worksheet.Cells[1, 1].Value = "Năm:";
+            worksheet.Cells[1, 2].Value = year;
+            worksheet.Cells[1, 3].Value = "Tháng:";
+            worksheet.Cells[1, 4].Value = month;
+
+            // Table header
+            worksheet.Cells[2, 1].Value = "STT";
+            worksheet.Cells[2, 2].Value = "Mã nhân viên";
+            worksheet.Cells[2, 3].Value = "Họ và tên"; // Thêm cột họ tên
+
+            for (int day = 1; day <= 31; day++)
+            {
+                worksheet.Cells[2, day + 3].Value = $"Ngày {day}";
+            }
+
+            if (!timesheets.Any())
+            {
+                return await package.GetAsByteArrayAsync();
+            }
+
+            int row = 3;
+            int stt = 1;
+
+            foreach (var timesheet in timesheets)
+            {
+                worksheet.Cells[row, 1].Value = stt++;
+                worksheet.Cells[row, 2].Value = timesheet.Person?.StaffId;
+                worksheet.Cells[row, 3].Value = $"{timesheet.Person?.FirstName} {timesheet.Person?.LastName}";
+
+                var days = JsonConvert.DeserializeObject<string[]>(timesheet.TimesheetJSON ?? "[]");
+                for (int day = 0; day < days.Length && day < 31; day++)
+                {
+                    worksheet.Cells[row, day + 4].Value = days[day]; // đẩy sang phải 1 cột
+                }
+
+                row++;
+            }
+
+            return await package.GetAsByteArrayAsync();
+        }
+
+
+
+
 
         public async Task<BaseResponse<TimesheetResource>> GetTimesheetByPersonIdAsync(int personId, DateTime date)
         {

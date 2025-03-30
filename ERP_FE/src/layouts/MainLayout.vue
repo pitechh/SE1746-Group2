@@ -236,6 +236,22 @@
             </q-item-section>
             <q-item-section>{{ $t("accountForQTDA") }}</q-item-section>
           </q-item>
+
+          <q-item
+            v-show="getRole == 'admin' || getRole == 'editor-qtkt'"
+            @click="isShowInfor = false"
+            clickable
+            v-ripple
+            to="/salary-formula-config"
+            exact
+            active-class="isActive"
+            class="q-pl-lg"
+          >
+            <q-item-section avatar>
+              <q-icon name="account_circle" />
+            </q-item-section>
+            <q-item-section>{{ $t("Salary Formula Config") }}</q-item-section>
+          </q-item>
         </q-list>
       </div>
     </q-drawer>

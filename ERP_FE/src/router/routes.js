@@ -10,6 +10,11 @@ const routes = [
     meta: { requireLogin: true },
     children: [
       {
+        name: "Salary Formula Config",
+        path: "/salary-formula-config",
+        component: () => import("src/pages/SalaryFormulaConfig/SalaryFormulaConfig.vue"),
+      },
+      {
         name: "List Employee KT",
         path: "/list-employee-kt",
         component: () => import("src/pages/Employee/ListEmployeeForKT.vue"),

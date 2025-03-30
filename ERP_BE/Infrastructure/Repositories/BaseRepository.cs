@@ -27,6 +27,9 @@ namespace Infrastructure.Repositories
         public virtual async Task<Entity> GetByIdAsync(int entityId) =>
             await _entities.Where(entity => EF.Property<int>(entity, "Id").Equals(entityId)).SingleOrDefaultAsync();
 
+        public virtual async Task<Entity> GetByPersonIdAsync(int entityId) =>
+            await _entities.Where(entity => EF.Property<int>(entity, "PersonId").Equals(entityId)).SingleOrDefaultAsync();
+
         public virtual async Task InsertAsync(Entity entity) =>
             await _entities.AddAsync(entity);
 

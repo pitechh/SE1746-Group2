@@ -12,25 +12,25 @@ namespace Business.Services
 {
     public class PayService : BaseService<PayResource, CreatePayResource, UpdatePayResource, Pay>, IPayService
     {
-        #region Property
         private readonly IPayRepository _payRepository;
         private readonly ITimesheetRepository _timesheetRepository;
-        #endregion
+        private readonly ISalaryFormulaConfigRepository _formulaRepository;
 
-        #region Constructor
-        public PayService(IPayRepository payRepository,
+        public PayService(
+            IPayRepository payRepository,
             ITimesheetRepository timesheetRepository,
+            ISalaryFormulaConfigRepository formulaRepository,
             IMapper mapper,
             IUnitOfWork unitOfWork,
-            IOptionsMonitor<ResponseMessage> responseMessage) : base(payRepository, mapper, unitOfWork, responseMessage)
+            IOptionsMonitor<ResponseMessage> responseMessage
+        ) : base(payRepository, mapper, unitOfWork, responseMessage)
         {
-            this._payRepository = payRepository;
-            this._timesheetRepository = timesheetRepository;
+            _payRepository = payRepository;
+            _timesheetRepository = timesheetRepository;
+            _formulaRepository = formulaRepository;
         }
-        #endregion
 
-        #region Method
-        public async override Task<BaseResponse<PayResource>> InsertAsync(CreatePayResource createPayResource)
+        public override async Task<BaseResponse<PayResource>> InsertAsync(CreatePayResource createPayResource)
         {
             try
             {
@@ -38,22 +38,59 @@ namespace Business.Services
                 if (workDayResource is null)
                     return new BaseResponse<PayResource>(ResponseMessage.Values["Timesheet_NoData"]);
 
-                // Mapping Resource to Pay
                 var pay = Mapper.Map<CreatePayResource, Pay>(createPayResource);
                 pay.WorkDay = workDayResource.WorkDay;
                 pay.TotalWorkDay = workDayResource.TotalWorkDay;
 
-                decimal grossWithoutBonus = (decimal)workDayResource.WorkDay * pay.BaseSalary / (decimal)workDayResource.TotalWorkDay;
-                Receivables receivables = new(grossWithoutBonus);
+                decimal grossWithoutBonus = (decimal)pay.WorkDay * pay.BaseSalary / (decimal)pay.TotalWorkDay;
+                decimal gross = grossWithoutBonus + pay.Allowance + pay.Bonus;
 
-                pay.PIT = receivables.PIT;
-                pay.HealthInsurance = receivables.HealthInsurance;
-                pay.SocialInsurance = receivables.SocialInsurance;
+                var pitFormula = await _formulaRepository.GetActiveByTypeAsync("PIT");
+                var siFormula = await _formulaRepository.GetActiveByTypeAsync("SocialInsurance");
+
+                decimal pitAmount = 0;
+                decimal siAmount = 0;
+                decimal hiAmount = Math.Round(pay.BaseSalary * 0.01m, 3); // BHYT 1%
+
+                if (!string.IsNullOrWhiteSpace(pitFormula?.Expression))
+                {
+                    var pitParser = new NCalc.Expression(pitFormula.Expression);
+                    pitParser.Parameters["baseSalary"] = pay.BaseSalary;
+                    pitParser.Parameters["allowance"] = pay.Allowance;
+                    pitParser.Parameters["bonus"] = pay.Bonus;
+                    pitParser.Parameters["gross"] = gross;
+                    pitAmount = Math.Round(Convert.ToDecimal(pitParser.Evaluate()), 3);
+                }
+
+                if (!string.IsNullOrWhiteSpace(siFormula?.Expression))
+                {
+                    var siParser = new NCalc.Expression(siFormula.Expression);
+                    siParser.Parameters["baseSalary"] = pay.BaseSalary;
+                    siParser.Parameters["allowance"] = pay.Allowance;
+                    siParser.Parameters["bonus"] = pay.Bonus;
+                    siParser.Parameters["gross"] = gross;
+                    siAmount = Math.Round(Convert.ToDecimal(siParser.Evaluate()), 3);
+                }
+
+                pay.PIT = (float)pitAmount;
+                pay.SocialInsurance = (float)siAmount;
+                pay.HealthInsurance = (float)hiAmount;
 
                 await _payRepository.InsertAsync(pay);
                 await UnitOfWork.CompleteAsync();
 
                 var payResource = Mapper.Map<Pay, PayResource>(pay);
+                payResource.Gross = Math.Round(gross, 3);
+                payResource.NET = Math.Round(gross - pitAmount - siAmount - hiAmount, 3);
+
+                // ✅ Lấy phần trăm từ biểu thức gốc (nếu có)
+                payResource.PITPercent = ExtractPercent(pitFormula?.Expression);
+                payResource.SocialInsurancePercent = ExtractPercent(siFormula?.Expression);
+                payResource.HealthInsurancePercent = 1.0f; // cố định
+
+                payResource.PIT = pitAmount;
+                payResource.SocialInsurance = siAmount;
+                payResource.HealthInsurance = hiAmount;
 
                 return new BaseResponse<PayResource>(payResource);
             }
@@ -63,6 +100,30 @@ namespace Business.Services
             }
         }
 
-        #endregion
+
+        private float ExtractPercent(string? expression)
+        {
+            if (string.IsNullOrWhiteSpace(expression))
+                return 0f;
+
+            try
+            {
+                // Regex đơn giản để lấy phần trăm như: gross * 0.05 => 5%
+                var match = System.Text.RegularExpressions.Regex.Match(expression, @"\* *(\d+(\.\d+)?)");
+                if (match.Success && float.TryParse(match.Groups[1].Value, out float result))
+                {
+                    return result * 100;
+                }
+            }
+            catch
+            {
+                // Bỏ qua nếu không parse được
+            }
+
+            return 0f;
+        }
+
+
     }
+
 }

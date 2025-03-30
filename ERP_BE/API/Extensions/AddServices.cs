@@ -61,6 +61,10 @@ namespace API.Extensions
 
             services.AddScoped<IImageService, ImageService>(); // ImageCrossPlatformService (use for other OSs except Windows)
 
+            services.AddScoped<ISalaryFormulaConfigService, SalaryFormulaConfigService>();
+            services.AddScoped<ISalaryFormulaConfigRepository, SalaryFormulaConfigRepository>();
+
+
             services.AddScoped<IUnitOfWork, UnitOfWork>();
 
             services.AddAutoMapper(typeof(ModelToResourceProfile));
